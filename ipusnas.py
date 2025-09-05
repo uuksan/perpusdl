@@ -12,6 +12,7 @@ from PIL import Image
 from io import BytesIO
 import argparse
 from urllib.parse import urlparse
+from dotenv import load_dotenv
 
 
 # Parser CLI
@@ -78,10 +79,14 @@ service = Service(r"C:\Users\asus-pc\AppData\Local\Microsoft\WinGet\Packages\Moz
 driver.get(f"https://{domain}/login")  # ganti dengan URL target
 time.sleep(2)
 
+load_dotenv()
+email_ipusnas = os.getenv("EMAIL")
+password_ipusnas = os.getenv("PASSWORD")
+
 username_input = driver.find_element(By.ID, "email")
 password_input = driver.find_element(By.NAME, "password")
-username_input.send_keys("uuk.san@gmail.com")
-password_input.send_keys("Jokosan00")
+username_input.send_keys(email_ipusnas)
+password_input.send_keys(password_ipusnas)
 password_input.send_keys(Keys.RETURN)
 time.sleep(9)
 
