@@ -30,8 +30,8 @@ parser.add_argument(
 parser.add_argument(
     "-z", "--zoom",
     type=int,
-    default=10,
-    help="Zoom page (default = 10)"
+    default=9,
+    help="Zoom page (default = 9)"
 )
 
 args = parser.parse_args()
@@ -43,8 +43,9 @@ parsed = urlparse(link_ipusnas)
 domain = parsed.netloc
 #path = parsed.path
 
-folder_name = args.folder
+
 sleeps = args.sleeps
+folder_name = os.path.join("hasil", args.folder)
 os.makedirs(folder_name, exist_ok=True)
 jumlah = args.jumlah
 epub_mode = args.epub   # True kalau --epub ditulis, False kalau tidak
@@ -89,6 +90,7 @@ username_input.send_keys(email_ipusnas)
 password_input.send_keys(password_ipusnas)
 password_input.send_keys(Keys.RETURN)
 time.sleep(9)
+time.sleep(sleeps)
 
 driver.get(link_ipusnas)
 time.sleep(3)
