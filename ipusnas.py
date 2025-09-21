@@ -13,6 +13,8 @@ from io import BytesIO
 import argparse
 from urllib.parse import urlparse
 from dotenv import load_dotenv
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
 
 
 # Parser CLI
@@ -48,7 +50,6 @@ sleeps = args.sleeps
 folder_name = os.path.join("hasil", args.folder)
 os.makedirs(folder_name, exist_ok=True)
 jumlah = args.jumlah
-epub_mode = args.epub   # True kalau --epub ditulis, False kalau tidak
 zoom = args.zoom
 
 print()
@@ -109,33 +110,90 @@ baca_button.click()
 time.sleep(9)
 time.sleep(sleeps)
 
-for _ in range(zoom):
-    zoom_in_btn = driver.find_element(By.CSS_SELECTOR, "button[data-testid='zoom__in-button']")
-    zoom_in_btn.click()
+#fungsi screenshot
+def screenshot_pages(driver, folder_name, jumlah, zoom):
+    for _ in range(zoom):
+        zoom_in_btn = driver.find_element(By.CSS_SELECTOR, "button[data-testid='zoom__in-button']")
+        zoom_in_btn.click()
+        time.sleep(0.5)
+
     time.sleep(0.5)
-
-time.sleep(0.5)
-element = driver.find_element(By.CSS_SELECTOR, "div[aria-label='Page 1']")
-ActionChains(driver).move_to_element(element).perform()
-time.sleep(3)
+    element = driver.find_element(By.CSS_SELECTOR, "div[aria-label='Page 1']")
+    ActionChains(driver).move_to_element(element).perform()
+    time.sleep(3)
 
 
-# === Loop screenshot ===
-body = driver.find_element(By.TAG_NAME, "body")  # ambil elemen <body>
-for i in range(jumlah):
-    file_name = os.path.join(folder_name, f"{datetime.now().strftime('%Y%m%d_%H%M%S')}_{i+1}.png")
-    # --- Ambil full page screenshot (binary PNG) ---
-    png_data = driver.get_full_page_screenshot_as_png()
+    # === Loop screenshot ===
+    body = driver.find_element(By.TAG_NAME, "body")  # ambil elemen <body>
+    for i in range(jumlah):
+        file_name = os.path.join(folder_name, f"{datetime.now().strftime('%Y%m%d_%H%M%S')}_{i+1}.png")
+        # --- Ambil full page screenshot (binary PNG) ---
+        png_data = driver.get_full_page_screenshot_as_png()
 
-    # --- Buka dengan Pillow ---
-    image = Image.open(BytesIO(png_data))
-    image = image.convert('RGB')
+        # --- Buka dengan Pillow ---
+        image = Image.open(BytesIO(png_data))
+        image = image.convert('RGB')
 
-    # --- Simpan ke file ---
-    image.save(file_name, "PNG")
-    print(f"Screenshot {i+1}/{jumlah}  tersimpan: {file_name}")
-    body.send_keys(Keys.PAGE_DOWN)  # tekan PageDown
-    time.sleep(1.4)
+        # --- Simpan ke file ---
+        image.save(file_name, "PNG")
+        print(f"Screenshot {i+1}/{jumlah}  tersimpan: {file_name}")
+        body.send_keys(Keys.PAGE_DOWN)  # tekan PageDown
+        time.sleep(1.4)
+
+#fungsi epub
+def epub_pages(driver, folder_name, jumlah):
+    """
+    Menyimpan konten iframe dari reader ke file HTML.
+    
+    :param driver: Selenium WebDriver
+    :param folder_name: Folder output tempat menyimpan file
+    :param jumlah: Banyak halaman yang ingin disimpan
+    :param timeout: Waktu tunggu maksimum untuk elemen (detik)
+    """
+    wait = WebDriverWait(driver, 15)
+
+    # Tombol pertama (ikon untuk buka viewer)
+    svg_elem = wait.until(
+        EC.element_to_be_clickable((By.CSS_SELECTOR, 'svg[viewBox="0 0 48 48"]'))
+    )
+    driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", svg_elem)
+    time.sleep(0.3)
+    svg_elem.click()
+
+    for i in range(jumlah):
+        # Tunggu iframe muncul
+        iframe = wait.until(
+            EC.presence_of_element_located((By.CSS_SELECTOR, "div.epub-view iframe"))
+        )
+
+        # Ambil isi HTML
+        srcdoc_html = iframe.get_attribute("srcdoc")
+
+        # Simpan ke file
+        filename = os.path.join(folder_name, f"iframe_content_{i+1}.html")
+        with open(filename, "w", encoding="utf-8") as f:
+            f.write(srcdoc_html)
+        print(f"✅ Halaman {i+1}/{jumlah} disimpan: {filename}")
+
+        # Klik tombol Next
+        try:
+            svg_elem = wait.until(
+                EC.element_to_be_clickable((By.CSS_SELECTOR, "svg.tabler-icon-chevron-right"))
+            )
+            driver.execute_script("arguments[0].scrollIntoView({block:'center', inline:'center'});", svg_elem)
+            time.sleep(0.3)
+            svg_elem.click()
+            time.sleep(1)
+        except:
+            print(f"❌ Tidak bisa klik tombol Next di halaman {i+1}. Berhenti.")
+            break
+
+
+if args.epub:
+    epub_pages(driver, folder_name=folder_name, jumlah=jumlah)
+else:
+    screenshot_pages(driver, folder_name=folder_name, jumlah=jumlah, zoom=zoom)
+
 
 print()
 print(r"""
@@ -152,3 +210,5 @@ print(r"""
 #driver.quit()
 if args.headless:
     driver.quit()
+
+
