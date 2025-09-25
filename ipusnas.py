@@ -24,17 +24,9 @@ parser.add_argument("-f", "--folder", required=True, help="Nama folder untuk sim
 parser.add_argument("-j", "--jumlah", type=int, required=True, help="Jumlah screenshot")
 parser.add_argument("-s", "--sleeps", type=int, default=0, help="tambah waktu sleep (default = 0)")
 parser.add_argument("--epub", action="store_true", help="Aktifkan mode EPUB")
-parser.add_argument(
-    "-H", "--headless",
-    action="store_false",
-    help="Aktifkan mode headless"
-)
-parser.add_argument(
-    "-z", "--zoom",
-    type=int,
-    default=9,
-    help="Zoom page (default = 9)"
-)
+parser.add_argument("-H", "--headless", action="store_false", help="Aktifkan mode headless")
+parser.add_argument("-z", "--zoom", type=int, default=9, help="Zoom page (default = 9)")
+parser.add_argument("--pd", type=int, default=0, help="Page down, menuju ke halaman (default=0)")
 
 args = parser.parse_args()
 
@@ -49,13 +41,14 @@ domain = parsed.netloc
 sleeps = args.sleeps
 folder_name = os.path.join("hasil", args.folder)
 os.makedirs(folder_name, exist_ok=True)
-jumlah = args.jumlah
+jumlah = args.jumlah-args.pd
 zoom = args.zoom
+pd = args.pd
 
 print()
 print("Link:", link_ipusnas)
 print("Folder:", folder_name)
-print("Jumlah screenshot:", jumlah)
+print("Jumlah halaman:", jumlah)
 print()
 
 # === Opsi Chrome ===
@@ -71,7 +64,7 @@ driver = webdriver.Firefox(options=options)
 
 # Atur ukuran window
 monitor2_width = 2160
-monitor2_height = 3840
+monitor2_height = 3200
 driver.set_window_size(monitor2_width, monitor2_height)
 #driver.maximize_window()
 
@@ -111,7 +104,9 @@ time.sleep(9)
 time.sleep(sleeps)
 
 #fungsi screenshot
-def screenshot_pages(driver, folder_name, jumlah, zoom):
+def screenshot_pages(driver, folder_name, jumlah, zoom, pd):
+    body = driver.find_element(By.TAG_NAME, "body")  # ambil elemen <body>
+
     for _ in range(zoom):
         zoom_in_btn = driver.find_element(By.CSS_SELECTOR, "button[data-testid='zoom__in-button']")
         zoom_in_btn.click()
@@ -121,10 +116,15 @@ def screenshot_pages(driver, folder_name, jumlah, zoom):
     element = driver.find_element(By.CSS_SELECTOR, "div[aria-label='Page 1']")
     ActionChains(driver).move_to_element(element).perform()
     time.sleep(3)
-
+    
+    for b in range (pd):
+        body.send_keys(Keys.PAGE_DOWN)  # tekan PageDown
+        time.sleep(1)
+    if args.pd:
+        time.sleep(9)
 
     # === Loop screenshot ===
-    body = driver.find_element(By.TAG_NAME, "body")  # ambil elemen <body>
+    
     for i in range(jumlah):
         file_name = os.path.join(folder_name, f"{datetime.now().strftime('%Y%m%d_%H%M%S')}_{i+1}.png")
         # --- Ambil full page screenshot (binary PNG) ---
@@ -192,7 +192,7 @@ def epub_pages(driver, folder_name, jumlah):
 if args.epub:
     epub_pages(driver, folder_name=folder_name, jumlah=jumlah)
 else:
-    screenshot_pages(driver, folder_name=folder_name, jumlah=jumlah, zoom=zoom)
+    screenshot_pages(driver, folder_name=folder_name, jumlah=jumlah, zoom=zoom, pd=pd)
 
 
 print()
@@ -210,5 +210,3 @@ print(r"""
 #driver.quit()
 if args.headless:
     driver.quit()
-
-
