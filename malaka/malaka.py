@@ -11,6 +11,7 @@ import time
 import os
 import argparse
 from urllib.parse import urlparse
+import subprocess
 
 parser = argparse.ArgumentParser(description="Script Malaka Books save")
 parser.add_argument("-l", "--link", required=True, help="Link Malaka Books")
@@ -21,14 +22,43 @@ link_malakabooks = args.link
 parsed = urlparse(link_malakabooks)
 domain = parsed.netloc
 #path = parsed.path
+print()
 print("Link:", link_malakabooks)
 print()
 
 
+### run task ini untuk membuka chrome kusus selenium
+### "C:\Program Files\Google\Chrome\Application\chrome.exe" --remote-debugging-port=9222 --user-data-dir="C:\chrome_selenium"
+
+# --- Jalankan Chrome dalam mode remote debugging ---
+chrome_path = r"C:\Program Files\Google\Chrome\Application\chrome.exe"
+user_data_dir = r"C:\chrome_selenium"
+debug_port = 9222
+
+# Cek apakah sudah ada Chrome yang berjalan di port itu
+# (agar tidak membuka lebih dari satu)
+import socket
+def is_port_in_use(port):
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        return s.connect_ex(('localhost', port)) == 0
+
+if not is_port_in_use(debug_port):
+    subprocess.Popen([
+        chrome_path,
+        f"--remote-debugging-port={debug_port}",
+        f'--user-data-dir={user_data_dir}'
+    ])
+    print("🚀 Membuka Chrome dengan remote debugging...")
+    time.sleep(3)  # beri waktu agar Chrome siap
+
+# --- Hubungkan Selenium ke Chrome yang sudah terbuka ---
 options = webdriver.ChromeOptions()
-options.debugger_address = "127.0.0.1:9222"
+options.debugger_address = f"127.0.0.1:{debug_port}"
 
 driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
+
+
+
 driver.get(link_malakabooks)
 
 # Tunggu halaman termuat penuh (opsional, bisa dihapus kalau cepat)
