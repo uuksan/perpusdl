@@ -13,7 +13,9 @@ import argparse
 from urllib.parse import urlparse
 import subprocess
 import re
+import shutil
 from ebooklib import epub
+import socket
 
 
 parser = argparse.ArgumentParser(description="Script Malaka Books save")
@@ -40,7 +42,7 @@ debug_port = 9222
 
 # Cek apakah sudah ada Chrome yang berjalan di port itu
 # (agar tidak membuka lebih dari satu)
-import socket
+
 def is_port_in_use(port):
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         return s.connect_ex(('localhost', port)) == 0
@@ -263,23 +265,6 @@ for div in soup.find_all("div", class_="flex flex-col md:items-center select-non
         new_h1["style"] = "text-align:center"
         div.replace_with(new_h1)
 
-
-
-####################################################################
-# --- Simpan hasil akhir ---
-
-#isiname = os.path.join(safe_title, "isi.html")
-#with open(isiname, "w", encoding="utf-8") as f:
-#    f.write(str(soup))
-
-#print("🎉 Semua halaman selesai disimpan & dirapikan ke isi.html")
-#########################################################################
-
-
-###########################
-#input("Tekan ENTER untuk keluar (Chrome tetap terbuka jika tidak ditutup manual)...")
-
-#################################
 #hapus div
 # Cari elemen utama reader-content
 reader_content = soup.find("div", {"id": "reader-content"})
@@ -358,11 +343,16 @@ print("📚 Pemisahan bab selesai. Cek folder:", safe_title)
 print()
 print("------------ pembuatan epub ------------")
 # --- Lokasi folder hasil ---
+# hasil
 base_dir = r"hasil"
+
+# Pertanyaan Kecil_ Jawaban Besar_ Evolusi di Kebun Binatang
 book_folder = save_title_book
+
+# hasil\Pertanyaan Kecil_ Jawaban Besar_ Evolusi di Kebun Binatang
 book_path = safe_title
 # --- Nama file output EPUB ---
-output_file = os.path.join(safe_title, f"{book_folder}.epub")
+output_file = os.path.join(base_dir, f"{book_folder} - {penulis_name} - MalakaBooks.epub")
 
 # --- Buat objek EPUB ---
 book = epub.EpubBook()
@@ -446,3 +436,19 @@ book.toc = tuple(chapters_list)
 # --- Simpan EPUB ---
 epub.write_epub(output_file, book, {})
 print(f"🎉 EPUB berhasil dibuat: {output_file}")
+
+######################################
+#hapus folder
+
+def hapus_folder(folder_path):
+    """
+    Menghapus seluruh folder beserta isinya.
+    """
+    if os.path.exists(folder_path):
+        shutil.rmtree(folder_path)
+        print(f"🗑️ Folder '{folder_path}' dan seluruh isinya telah dihapus.")
+    else:
+        print(f"⚠️ Folder '{folder_path}' tidak ditemukan.")
+        
+
+#hapus_folder(book_path)

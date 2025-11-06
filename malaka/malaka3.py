@@ -217,7 +217,10 @@ def main(link_malakabooks):
     os.makedirs(safe_title, exist_ok=True)
     filename = os.path.join(safe_title, f"CHAPTER 0 - {save_title_book}.html")
     save_clean_html(filename, title, clean_html_content, link_malakabooks)
-
+    #menyimpan html chapter
+    
+    #save_chapter(chapter_title, chapter_html_body, safe_title)
+    
     # --- Dapatkan penulis dan simpan cover ---
     penulis_name = get_author_name(driver)
     download_cover(driver, safe_title)
