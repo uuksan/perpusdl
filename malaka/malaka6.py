@@ -9,6 +9,34 @@ from webdriver_manager.chrome import ChromeDriverManager
 from ebooklib import epub
 import argparse
 from urllib.parse import urlparse
+import json
+
+
+
+# =======================================
+# membuka chrome dengan headless mode
+# =======================================
+def start_chrome_headless():
+    options = webdriver.ChromeOptions()
+    # options.add_argument('--headless')
+    options.add_argument('--disable-gpu')
+    options.add_argument('--window-size=1920x1080')
+    options.add_argument('--no-sandbox')
+    
+    user_data_dir = r"C:\chrome_selenium"
+    options.add_argument(f'--user-data-dir={user_data_dir}')
+    
+    profile_dir = "Default"
+    options.add_argument(f'--profile-directory={profile_dir}')
+    
+    try:
+        driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
+        print("✅ Chrome berjalan dalam headless mode")
+        driver.implicitly_wait(5)
+        return driver
+    except Exception as e:
+        print(f"Error saat menginisialisasi Chrome: {e}")
+
 
 
 # ============================================================
@@ -20,7 +48,6 @@ def start_chrome():
     debug_port = 9222
 
     # Cek apakah port sudah dipakai
-    import socket, subprocess, time
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         connected = s.connect_ex(("localhost", debug_port)) == 0
 
@@ -33,9 +60,7 @@ def start_chrome():
         print("🚀 Membuka Chrome dengan remote debugging...")
         time.sleep(5)  # tambah waktu agar Chrome siap
 
-    from selenium import webdriver
-    from selenium.webdriver.chrome.service import Service
-    from webdriver_manager.chrome import ChromeDriverManager
+
 
     options = webdriver.ChromeOptions()
     options.debugger_address = f"127.0.0.1:{debug_port}"
@@ -77,7 +102,8 @@ def get_book_intro(driver, link):
 
     title = driver.find_element(By.TAG_NAME, "h1").text
     safe_title = re.sub(r'[\\/*?:"<>|]', "_", title).strip()
-    folder = os.path.join("hasil", safe_title)
+    hasil = "hasil"
+    folder = os.path.join(hasil, safe_title)
     os.makedirs(folder, exist_ok=True)
 
     html_out = f"""<!DOCTYPE html><html lang="id"><head><meta charset="UTF-8">
@@ -94,27 +120,25 @@ def get_book_intro(driver, link):
     with open(os.path.join(folder, "cover.png"), "wb") as f:
         f.write(response.content)
     print("✅ Cover disimpan.")
-    return title, folder, safe_title
+    return title, folder, safe_title, hasil
 
 
 # ============================================================
 # Fungsi 4️⃣ - Buka Bab Pertama
 # ============================================================
 def open_first_chapter(driver):
-    wait = WebDriverWait(driver, 20)
-    tombol = wait.until(
-        EC.element_to_be_clickable((
-            By.CSS_SELECTOR,
-            "div.group.cursor-pointer.text-white"  # cukup spesifik tapi aman
-        ))
-    )
 
-    # Klik tombolnya
-    tombol.click()
-    print("✅ Tombol berhasil diklik!")
-    time.sleep(3)
+    # Tunggu sampai elemen <a> dengan kelas yang sesuai ditemukan
+    chapter_link = driver.find_element(By.CSS_SELECTOR, 
+        'div.flex.flex-col.items-center.gap-3.w-full a')
+    # Mengambil URL dari atribut href
+    link = chapter_link.get_attribute("href")
+    # Mengarahkan Selenium langsung ke URL
+    driver.get(link)
+    print(f"Berhasil membuka link: {link}")
+    time.sleep(15)
     
-    
+    wait = WebDriverWait(driver, 50)
     menu_button = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR,
         'button[aria-haspopup="dialog"][data-slot="popover-trigger"]')))
     menu_button.click()
@@ -209,12 +233,7 @@ def clean_and_split_html(soup, folder):
 # Fungsi 7️⃣ - Buat EPUB
 # ============================================================
     
-def create_epub(folder, title, author, safe_title):
-    # Pastikan folder hasil ada, jika tidak buat
-    output_folder = "hasil"
-    if not os.path.exists(output_folder):
-        os.makedirs(output_folder)
-
+def create_epub(folder, title, author, safe_title, hasil):
     # Validasi input
     if not title or not author:
         raise ValueError("Judul dan penulis tidak boleh kosong!")
@@ -237,11 +256,15 @@ def create_epub(folder, title, author, safe_title):
 
     # Mencari dan membaca file HTML untuk bab
     html_files = sorted([f for f in os.listdir(folder) if f.lower().startswith("chapter") and f.endswith(".html")])
+    
+    # Menyortir file HTML berdasarkan nomor chapter yang ada di dalam nama file
+    html_files_sorted = sorted(html_files, key=lambda f: int(f.split('CHAPTER')[1].split(' ')[1]) if f.split('CHAPTER')[1].split(' ')[1].isdigit() else -1)
+    
     if not html_files:
         raise ValueError("Tidak ada file HTML bab ditemukan dalam folder!")
 
     chapters = []
-    for f_html in html_files:
+    for f_html in html_files_sorted:
         chapter_file_path = os.path.join(folder, f_html)
         try:
             with open(chapter_file_path, encoding="utf-8") as f:
@@ -272,8 +295,8 @@ def create_epub(folder, title, author, safe_title):
     # Membuat nama file output
     # safe_title = "".join([c if c.isalnum() else " " for c in title])  # Mengganti karakter yang tidak aman untuk nama file
     safe_author = "".join([c if c.isalnum() else " " for c in author])  # Mengganti karakter yang tidak aman
-    output = os.path.join(output_folder, f"{safe_title} - {safe_author} - MalakaBooks.epub")
-
+    epub_name = (f"{safe_title} - {safe_author} - MalakaBooks.epub")
+    output = os.path.join(hasil, epub_name)
 
     try:
         # Menulis file EPUB
@@ -281,6 +304,8 @@ def create_epub(folder, title, author, safe_title):
         print(f"🎉 EPUB berhasil dibuat: {output}")
     except Exception as e:
         print(f"Error saat menulis file EPUB: {e}")
+
+    return epub_name
 
 
 # ============================================================
@@ -309,50 +334,81 @@ def get_link_from_args():
 
     link_malakabooks = args.link.strip()
     parsed = urlparse(link_malakabooks)
-    domain = parsed.netloc
+    # domain = parsed.netloc
 
     print(f"\nLink: {link_malakabooks}")
-    return link_malakabooks, domain
+    return link_malakabooks
     
 # ============================================================
 # Fungsi 10 - total halaman
 # ============================================================    
 def get_total_pages(driver):
-    # Mengambil HTML dari halaman yang dimuat oleh Selenium
     html = driver.page_source
-    
-    # Parsing HTML menggunakan BeautifulSoup
     soup = BeautifulSoup(html, 'html.parser')
-    
-    # Mencari elemen <span> yang mengandung teks 'Page X of Y'
     page_text = soup.find('span', class_='select-none text-sm text-black')
     
-    # Jika elemen ditemukan, ekstrak angka terakhir (total halaman)
     if page_text:
-        # Menggunakan regex untuk mengambil angka setelah 'of'
         match = re.search(r'Page \d+ of (\d+)', page_text.get_text())
         if match:
-            total_pages = match.group(1)  # Ambil angka total halaman
-            return int(total_pages)  # Mengembalikan angka total halaman sebagai integer
-    return None  # Jika tidak ditemukan, kembalikan None
+            total_pages = match.group(1)
+            return int(total_pages)
+    return None
 
+# =================================================
+# fungsi json
+# =================================================
+def save_to_json(link, author, title, folder, epub_name, hasil):
+
+    book_data = {
+        "author": author,
+        "title": title,
+        "main_folder": hasil,
+        "folder": folder.replace("\\", "/"),
+        "epub_name": epub_name
+    }
+    
+
+    # Nama file JSON-nya
+    json_path = "downloaded_books.json"
+
+    # Kalau file sudah ada, baca isinya dulu
+    if os.path.exists(json_path):
+        with open(json_path, "r", encoding="utf-8") as f:
+            try:
+                data = json.load(f)
+            except json.JSONDecodeError:
+                data = {}
+    else:
+        data = {}
+
+    # Simpan / update data berdasarkan link sebagai key
+    data[link] = book_data
+
+    # Tulis kembali ke file JSON
+    with open(json_path, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=4)
+
+    print(f"💾 Metadata disimpan / diperbarui di: {json_path}")
 
 # ============================================================
 # MAIN
 # ============================================================
 def main():
-    link, domain = get_link_from_args() #task hilangkan domain
-    driver = start_chrome()
+    link = get_link_from_args() #task hilangkan domain
+    # driver = start_chrome()
+    driver = start_chrome_headless()
     driver.get(link)
     author = get_author_name(driver)
-    title, folder, safe_title = get_book_intro(driver, link)
+    title, folder, safe_title, hasil = get_book_intro(driver, link)
     open_first_chapter(driver)
     total_pages = get_total_pages(driver)
     soup = scrape_all_chapters(driver, total_pages)
-    # clean_and_split_html(soup, folder)
-    # create_epub(folder, title, author, safe_title)
+    clean_and_split_html(soup, folder)
+    epub_name = create_epub(folder, title, author, safe_title, hasil)
     # hapus_folder(folder)
+    save_to_json(link, author, title, folder, epub_name, hasil)
     print("✅ Semua proses selesai.")
+    
 
 
 if __name__ == "__main__":
