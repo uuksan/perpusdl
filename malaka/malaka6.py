@@ -18,9 +18,9 @@ import json
 # =======================================
 def start_chrome_headless():
     options = webdriver.ChromeOptions()
-    # options.add_argument('--headless')
+    options.add_argument('--headless')
     options.add_argument('--disable-gpu')
-    options.add_argument('--window-size=1920x1080')
+    options.add_argument('--window-size=1920,1080')
     options.add_argument('--no-sandbox')
     
     user_data_dir = r"C:\chrome_selenium"
@@ -33,11 +33,16 @@ def start_chrome_headless():
         driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
         print("✅ Chrome berjalan dalam headless mode")
         driver.implicitly_wait(5)
+        size = driver.get_window_size()
+        print(size)
         return driver
     except Exception as e:
         print(f"Error saat menginisialisasi Chrome: {e}")
 
-
+    # monitor2_width = 2160
+    # monitor2_height = 3200
+    # driver.set_window_size(monitor2_width, monitor2_height)
+    # driver.maximize_window()
 
 # ============================================================
 # Fungsi 1️⃣ - Buka Chrome Remote Debugging
@@ -136,7 +141,7 @@ def open_first_chapter(driver):
     # Mengarahkan Selenium langsung ke URL
     driver.get(link)
     print(f"Berhasil membuka link: {link}")
-    time.sleep(15)
+    time.sleep(10)
     
     wait = WebDriverWait(driver, 50)
     menu_button = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR,
@@ -293,7 +298,6 @@ def create_epub(folder, title, author, safe_title, hasil):
     book.toc = tuple(chapters)
 
     # Membuat nama file output
-    # safe_title = "".join([c if c.isalnum() else " " for c in title])  # Mengganti karakter yang tidak aman untuk nama file
     safe_author = "".join([c if c.isalnum() else " " for c in author])  # Mengganti karakter yang tidak aman
     epub_name = (f"{safe_title} - {safe_author} - MalakaBooks.epub")
     output = os.path.join(hasil, epub_name)
