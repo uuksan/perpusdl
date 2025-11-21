@@ -31,9 +31,7 @@ def setup_driver(headless=True):
 # =========================================================
 # === FUNGSI: LOGIN IPUSNAS ===============================
 # =========================================================
-def login_ipusnas(driver, link, sleep_time=0):
-    print()
-    print("Link:    ", link)
+def login_ipusnas(driver, link, folder_name, sleep_time):
     parsed = urlparse(link)
     domain = parsed.netloc
 
@@ -67,16 +65,18 @@ def login_ipusnas(driver, link, sleep_time=0):
     
     # === Ambil data judul & penulis ===
     desc = driver.find_element(By.CSS_SELECTOR, "div.description-book")
-
     judul = desc.find_element(By.CSS_SELECTOR, "h2.book-title span").text
     penulis = desc.find_element(By.CSS_SELECTOR, "div.book-author").text
 
-    # === Gabungkan jadi format folder ===
-    folder_name = f"{judul} - {penulis}"
+    if folder_name:
+        pass
+    else:
+        # === Gabungkan jadi format folder ===
+        folder_name = f"{judul} - {penulis}"
 
-    # === Bersihkan karakter ilegal di nama folder ===
-    for c in r'\/:*?"<>|':
-        folder_name = folder_name.replace(c, "")
+        # === Bersihkan karakter ilegal di nama folder ===
+        for c in r'\/:*?"<>|':
+            folder_name = folder_name.replace(c, "")
     
     # === Buat folder hasil ===
     folder_name = os.path.join("hasil", folder_name)
@@ -106,19 +106,17 @@ def screenshot_pages(driver, folder_name, zoom, pd, jumlah):
 
     element = driver.find_element(By.CSS_SELECTOR, "div[aria-label='Page 1']")
     ActionChains(driver).move_to_element(element).perform()
-    time.sleep(3)
-
-    for _ in range(pd):
-        body.send_keys(Keys.PAGE_DOWN)
-        time.sleep(1)
+    time.sleep(20)
 
     if pd:
+        print("mulai dari halaman: ", pd + 1)
+        for _ in range(pd):
+            body.send_keys(Keys.PAGE_DOWN)
+            time.sleep(1)
         time.sleep(9)
-    
-    jumlah = jumlah - pd
-    try:
+            # jumlah = jumlah - pd
 
-        
+    try:
         # Jika jumlah halaman ditentukan lewat -j
         if jumlah:
             print(f"Jumlah -j: {jumlah}")
@@ -126,16 +124,15 @@ def screenshot_pages(driver, folder_name, zoom, pd, jumlah):
             # Jika tidak ada -j, hitung div dan tampilkan hasilnya
             # Ambil semua div dengan kelas 'rpv-thumbnail__container'
             divs = driver.find_elements(By.CLASS_NAME, 'rpv-thumbnail__container')
-            
             # Hitung jumlah div yang ditemukan
             jumlah = len(divs)
-            print(f"Jumlah page:{jumlah}")
-            print()
-        
     except Exception as e:
         print(f"Error: {e}")
     
-    
+    jumlah = jumlah - pd
+    print(f"Jumlah page: {jumlah}")
+    print()
+
     for i in range(jumlah):
         file_name = os.path.join(folder_name, f"{datetime.now().strftime('%Y%m%d_%H%M%S')}_{i+1}.png")
         png_data = driver.get_full_page_screenshot_as_png()
@@ -185,14 +182,17 @@ def epub_pages(driver, folder_name, jumlah):
 def get_args():
     parser = argparse.ArgumentParser(description="Script Screenshot iPusnas")
     parser.add_argument("-l", "--link", required=True, help="Link iPusnas")
-    # parser.add_argument("-f", "--folder", required=True, help="Nama folder hasil")
+    parser.add_argument("-f", "--folder", type=str, help="Nama folder hasil")
     parser.add_argument("-j", "--jumlah", type=int, help="Jumlah halaman")
     parser.add_argument("-s", "--sleeps", type=int, default=0, help="Tambahan waktu sleep")
     parser.add_argument("--epub", action="store_true", help="Aktifkan mode EPUB")
     parser.add_argument("-H", "--headless", action="store_false", help="Aktifkan mode headless")
     parser.add_argument("-z", "--zoom", type=int, default=9, help="Zoom halaman")
     parser.add_argument("--pd", type=int, default=0, help="Jumlah PageDown awal")
-
+    
+    print()
+    print(f'Link: {parser.parse_args().link}')
+    
     return parser.parse_args()
 
 
@@ -205,7 +205,7 @@ def main():
     driver = setup_driver(headless=args.headless)
 
     try:
-        folder_name = login_ipusnas(driver, args.link, sleep_time=args.sleeps)
+        folder_name = login_ipusnas(driver, args.link, args.folder, args.sleeps)
         if args.epub:
             epub_pages(driver, folder_name, args.jumlah)
         else:
