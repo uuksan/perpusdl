@@ -1,6 +1,7 @@
 # **README.md – iPusnas Screenshot & EPUB Downloader**  
 
 **Perpus downloader. Script python otomatis digunakan untuk mengambil screenshot buku-buku atau menyimpan html dari epub yang dipinjam dari ipusnas dan aplikasi web sejenis dari pengembang Aksaramaya.**
+**readme.md ini ditulis oleh grok**
 
 ![Python](https://img.shields.io/badge/python-3.9%2B-blue)
 ![Selenium](https://img.shields.io/badge/selenium-4.x-green)
